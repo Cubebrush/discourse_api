@@ -1,5 +1,4 @@
 require 'faraday'
-require 'faraday_middleware'
 require 'json'
 require 'discourse_api/version'
 require 'discourse_api/api/categories'
@@ -96,12 +95,11 @@ module DiscourseApi
 
     def connection
       @connection ||= Faraday.new connection_options do |conn|
-        # Follow redirects
-        conn.use FaradayMiddleware::FollowRedirects, limit: 5
+        # Follow redirects - handled by default in Faraday 2.0+
         # Convert request params to "www-form-encoded"
         conn.request :url_encoded
         # Parse responses as JSON
-        conn.use FaradayMiddleware::ParseJson, content_type: 'application/json'
+        conn.response :json, content_type: 'application/json'
         # Use Faraday's default HTTP adapter
         conn.adapter Faraday.default_adapter
         #pass api_key and api_username on every request
@@ -119,7 +117,7 @@ module DiscourseApi
       response = connection.send(method.to_sym, path, params)
       handle_error(response)
       response.env
-    rescue Faraday::ClientError, JSON::ParserError
+    rescue Faraday::Error, JSON::ParserError
       raise DiscourseApi::Error
     end
 
